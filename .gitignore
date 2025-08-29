@@ -1,0 +1,12 @@
+#terraform files
+infrastructure/.terraform\providers/registry.terraform.io/hashicorp/
+infrastructure/.terraform
+infrastructure/.terraform.lock.hcl
+infrastructure/terraform.tfstate
+infrastructure/terraform.tfstate.backup
+
+#gcp key
+gcp_service_account_key.json
+
+#other
+to_do.txt

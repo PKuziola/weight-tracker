@@ -1,0 +1,14 @@
+[
+  {
+    "name": "date",
+    "type": "DATE",
+    "mode": "REQUIRED",
+    "description": "Date when the weight was recorded."
+  },
+  {
+    "name": "weight",
+    "type": "FLOAT",
+    "mode": "NULLABLE",
+    "description": "Weight of the person in kilograms."
+  }
+]

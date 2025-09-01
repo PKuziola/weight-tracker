@@ -8,5 +8,9 @@ infrastructure/terraform.tfstate.backup
 #gcp key
 gcp_service_account_key.json
 
+#telegram-bot
+telegram-bot/bot-env/
+
 #other
 to_do.txt
+.env

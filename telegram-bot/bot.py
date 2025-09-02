@@ -8,7 +8,7 @@ load_dotenv()
 #Commands
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):    
     user_id = update.effective_user.id
-    if user_id not in allowed_username:
+    if str(user_id) not in allowed_username:
         await update.message.reply_text("🚫 You are not authorized.")
         return    
     user_name = update.effective_user.first_name or "there"

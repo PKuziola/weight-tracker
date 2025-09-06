@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler
 from datetime import datetime
+from google.cloud import bigquery
 
 
 load_dotenv()
@@ -18,8 +19,9 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"Hi {user_name}! Welcome to the Weight Tracker Bot!\n\n"
         "Commands:\n"
         "• /update - Add new weight entry\n"
+        "• /delete - Delete weight entry\n"
         "• /view - View your progress\n"
-        "• /help - Show all commands" 
+        "• /help - Show all commands"
     )
 
 # Define conversation states
@@ -35,11 +37,11 @@ async def date_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     date_text = update.message.text
     
     try:
-        date_datetime = datetime.strptime(date_text, '%Y-%m-%d').date()
-        context.user_data['selected_date'] = date_datetime
-        
+        date = datetime.strptime(date_text, '%Y-%m-%d').date()
+        context.user_data['selected_date'] = date
+
         await update.message.reply_text(
-            f"Date {date_text} selected.\nNow please enter your weight (in kg):"
+            f"Date {date} selected.\nNow please enter your weight (in kg):"
         )
         return ENTER_WEIGHT
         
@@ -51,18 +53,27 @@ async def date_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
 async def weight_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     try:
-        weight = float(update.message.text) #TODO: Validate weight format
-        date = context.user_data['selected_date']   
+        weight = float(update.message.text.replace(',', '.'))
+        date = context.user_data['selected_date']
 
-        #await process_weight_data(date, weight, update.effective_user.id) #TODO: Implement this function
-        
-        await update.message.reply_text(
-            f"✅ Done! Weight {weight}kg recorded for {date}."
-        )
-        
-        # Clear user data
-        context.user_data.clear()
-        return ConversationHandler.END
+        try:
+            await process_weight_data(date, weight)
+            await update.message.reply_text(
+                f"✅ Done! Weight {weight}kg recorded for {date}."
+            )
+            
+            # Clear user data
+            context.user_data.clear()
+            return ConversationHandler.END
+            
+        except Exception as e:
+            await update.message.reply_text(
+                f"❌ Error uploading data: Something went wrong. Please try again later.\n"
+                f"Error details: {str(e)}"
+            )
+            # Cancel conversation on error
+            context.user_data.clear()
+            return ConversationHandler.END
         
     except ValueError:
         await update.message.reply_text(
@@ -85,12 +96,48 @@ conv_handler = ConversationHandler(
     fallbacks=[CommandHandler('cancel', cancel)],
 )
 
+async def process_weight_data(date, weight):
+    """
+    Process and store weight data for a given user
+    
+    Args:
+        date: Date of the weight measurement
+        weight: Weight in kg
+        user_id: Telegram user ID
+    """
+    client = bigquery.Client.from_service_account_json('gcp_service_account_key.json')
+
+    full_table_id = f"{dataset_id}.{table_id}"
+
+    row = {
+        "date": date.isoformat(),
+        "weight": weight
+    }
+
+    try:
+        errors = client.insert_rows_json(
+            full_table_id, 
+            [row]
+        )
+        if errors:
+            print(f"Encountered errors while inserting row: {errors}")
+            raise Exception("Failed to insert data into BigQuery")
+
+    except Exception as e:
+        print(f"Error inserting data into BigQuery: {str(e)}")
+        raise
+
 if __name__ == '__main__':
     
     print("🤖 Weight Tracker Bot is starting...")
 
+    #get env variables
     token = os.getenv("TOKEN")
     allowed_username = os.getenv("TELEGRAM_USER_ID")
+    dataset_id = os.getenv("DATASET_NAME")
+    table_id = os.getenv("TABLE_NAME")
+
+
     app = Application.builder().token(token).build()
 
     #Commands

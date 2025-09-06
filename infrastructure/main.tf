@@ -4,7 +4,6 @@ resource "google_bigquery_dataset" "weight_dataset" {
   dataset_id                  = "weight_dataset"  
   description                 = "Dataset containing weight information"
   location                    = var.region
-  default_table_expiration_ms = 3600000
 
   labels = {
     env = "default"

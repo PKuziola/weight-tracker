@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler
+from datetime import datetime
 
 
 load_dotenv()
@@ -34,9 +35,8 @@ async def date_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     date_text = update.message.text
     
     try:
-        # Validate date format #TODO: Implement validation
-
-        context.user_data['selected_date'] = date_text
+        date_datetime = datetime.strptime(date_text, '%Y-%m-%d').date()
+        context.user_data['selected_date'] = date_datetime
         
         await update.message.reply_text(
             f"Date {date_text} selected.\nNow please enter your weight (in kg):"

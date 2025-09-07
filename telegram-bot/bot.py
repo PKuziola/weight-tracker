@@ -26,6 +26,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Define conversation states
 CHOOSE_DATE, ENTER_WEIGHT = range(2)
+DELETE_CHOOSE_DATE, CONFIRM_DELETE = range(2, 4)
 
 async def start_update(update: Update, context: ContextTypes.DEFAULT_TYPE):    
     await update.message.reply_text(
@@ -87,7 +88,139 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data.clear()
     return ConversationHandler.END
 
-conv_handler = ConversationHandler(
+async def start_delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "Please enter the date of the record you want to delete (format: YYYY-MM-DD):"
+    )
+    return DELETE_CHOOSE_DATE
+
+async def delete_date_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    date_text = update.message.text
+    
+    try:
+        date = datetime.strptime(date_text, '%Y-%m-%d').date()
+        context.user_data['delete_date'] = date
+
+        await update.message.reply_text(
+            f"Are you sure you want to delete the weight record for {date}?\n"
+            "Type 'yes' to confirm or 'no' to cancel:"
+        )
+        return CONFIRM_DELETE
+        
+    except ValueError:
+        await update.message.reply_text(
+            "Invalid date format. Please use YYYY-MM-DD format:"
+        )
+        return DELETE_CHOOSE_DATE
+
+async def confirm_delete(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    response = update.message.text.lower()
+    
+    if response == 'yes':
+        date = context.user_data['delete_date']
+        try:
+            # First check if record exists
+            record_exists = await check_record_exists(date)
+            
+            if not record_exists:
+                await update.message.reply_text(
+                    f"❌ No weight record found for {date}."
+                )
+            else:
+                try:
+                    await delete_weight_data(date)
+                    await update.message.reply_text(
+                        f"✅ Record for {date} has been deleted."
+                    )
+                except Exception as e:
+                    await update.message.reply_text(
+                        f"❌ Error deleting data: {str(e)}"
+                    )
+        except Exception as e:
+            await update.message.reply_text(
+                f"❌ Error deleting data: {str(e)}"
+            )
+    else:
+        await update.message.reply_text("Deletion cancelled.")
+    
+    context.user_data.clear()
+    return ConversationHandler.END
+
+async def check_record_exists(date):
+    """
+    Check if a weight record exists for the given date
+    
+    Args:
+        date: Date to check
+    Returns:
+        bool: True if record exists, False otherwise
+    """
+    client = bigquery.Client.from_service_account_json('gcp_service_account_key.json')
+    
+    full_table_id = f"{dataset_id}.{table_id}"
+    
+    query = f"""
+    SELECT EXISTS (
+        SELECT 1
+        FROM `{full_table_id}`
+        WHERE date = @date
+    ) as exists_record
+    """
+    
+    job_config = bigquery.QueryJobConfig(
+        query_parameters=[
+            bigquery.ScalarQueryParameter("date", "DATE", date)
+        ]
+    )
+    
+    try:
+        result = client.query(query, job_config=job_config).result()
+        return next(result).exists_record
+    except Exception as e:
+        print(f"Error checking record existence: {str(e)}")
+        raise
+
+async def delete_weight_data(date):
+    """
+    Delete weight data for a given user and date
+    
+    Args:
+        date: Date of the weight measurement to delete
+    """
+    client = bigquery.Client.from_service_account_json('gcp_service_account_key.json')
+    
+    full_table_id = f"{dataset_id}.{table_id}"
+    
+    query = f"""
+    DELETE FROM `{full_table_id}`
+    WHERE date = @date
+    """
+    
+    job_config = bigquery.QueryJobConfig(
+        query_parameters=[
+            bigquery.ScalarQueryParameter("date", "DATE", date),            
+        ]
+    )
+    
+    try:
+        query_job = client.query(query, job_config=job_config)
+        query_job.result()  
+    except Exception as e:
+        error_message = str(e)        
+        if "streaming buffer" in error_message:
+            raise Exception("⚠️ This record was just added and cannot be deleted yet. Please wait about 30 minutes before trying to delete it.")
+        raise Exception("Failed to delete data from BigQuery")
+
+delete_conv_handler = ConversationHandler(
+    entry_points=[CommandHandler('delete', start_delete)],
+    states={
+        DELETE_CHOOSE_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, delete_date_received)],
+        CONFIRM_DELETE: [MessageHandler(filters.TEXT & ~filters.COMMAND, confirm_delete)],
+    },
+    fallbacks=[CommandHandler('cancel', cancel)],
+)
+
+update_conv_handler = ConversationHandler(
     entry_points=[CommandHandler('update', start_update)],
     states={
         CHOOSE_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, date_received)],
@@ -103,7 +236,6 @@ async def process_weight_data(date, weight):
     Args:
         date: Date of the weight measurement
         weight: Weight in kg
-        user_id: Telegram user ID
     """
     client = bigquery.Client.from_service_account_json('gcp_service_account_key.json')
 
@@ -144,7 +276,8 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler("start", start_command))
 
     #Handlers
-    app.add_handler(conv_handler)
+    app.add_handler(update_conv_handler)
+    app.add_handler(delete_conv_handler)
 
     print('Polling...')
     app.run_polling(poll_interval=5)

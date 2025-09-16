@@ -58,6 +58,17 @@ async def weight_received(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         date = context.user_data['selected_date']
 
         try:
+            # Check if record already exists for this date
+            record_exists = await check_record_exists(date)
+            if record_exists:
+                await update.message.reply_text(
+                    f"⚠️ Weight record for {date} already exists.\n"
+                    f"Please use a different date or delete the existing record first."
+                )
+                context.user_data.clear()
+                return ConversationHandler.END
+
+            # If no record exists, proceed with saving
             await process_weight_data(date, weight)
             await update.message.reply_text(
                 f"✅ Done! Weight {weight}kg recorded for {date}."

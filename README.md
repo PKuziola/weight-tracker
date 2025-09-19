@@ -1,8 +1,9 @@
 <a name="readme-top"></a>
 # 📚 Table of Contents
 - [ℹ About The Project](#about)
-- [👨‍💻Built with](#db)
+- [👨‍💻Built with](#built_with)
 - [🔑Setup](#setup)
+- [🛢Database Schema](#db)
 - [📊 Visualization](#viz)
 - [🌲 Project tree](#tree)
 - [📄 License](#license)
@@ -24,6 +25,7 @@ The Terraform setup ensures consistent, reproducible infrastructure including Bi
 <p align="right">
 (<a href="#readme-top"> back to top</a>)</p>
 
+<a name="built_with"></a>
 # 👨‍💻 Built with
 
 | Technology | Usage |
@@ -138,6 +140,30 @@ python bot.py
 
 #In the future, the plan is for the bot to run 24/7 as a containerized app on Cloud Run
 ```
+
+<p align="right">
+(<a href="#readme-top"> back to top</a>)</p>
+
+
+<a name="db"></a>
+# 🛢Database Schema
+
+There are two tables used in this project:
+
+| Table Name     | Description                        |
+|----------------|------------------------------------|
+| `weight` | Raw data with individual weight entries. |
+| `weight_agg`  | Precomputed aggregates for analytics. |
+
+### weight Table
+
+| Column Name    | Type      | Mode | Description |
+|----------------|-----------|---|----------------------------------|
+| `date`           | DATE | REQUIRED | Date when the weight was recorded.  |
+| `weight`           | FLOAT | NULLABLE | Weight of the person in kilograms.  |
+
+### weight_agg Table
+
 
 <p align="right">
 (<a href="#readme-top"> back to top</a>)</p>

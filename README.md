@@ -167,3 +167,29 @@ There are two tables used in this project:
 
 <p align="right">
 (<a href="#readme-top"> back to top</a>)</p>
+
+
+# 🌲 Project tree
+```bash
+├─── images
+│    ├── image_1.png
+│    ├── image_2.png
+│    ├── image_3.jpg
+│    └── image_4.png
+├─── infrastructure #Terraform Configuration
+│    ├── table_schemas
+│    │   └── weight_table.json
+│    ├── main.tf
+│    ├── providers.tf
+│    ├── terraform.tfvars
+│    └── variables.tf
+├─── telegram-bot
+│    └── bot.py
+├── .env - sample
+├── .gitignore
+├── README.md 
+└── license.txt
+```
+
+<p align="right">
+(<a href="#readme-top"> back to top</a>)</p>

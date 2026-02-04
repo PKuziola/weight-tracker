@@ -16,10 +16,6 @@ resource "google_bigquery_table" "default" {
 
   deletion_protection = false
 
-  time_partitioning {
-    type = "DAY"
-  }
-
   labels = {
     env = "default"
   }
